@@ -15,6 +15,7 @@ interface RoleInput{
   department_id: number;
 };
 
+
 const PORT = 3001;
 const app = express();
 
@@ -46,7 +47,7 @@ const viewAllRoles = async () => {
       return;
     
     }
-    console.log('\n---Departments---\n');
+    console.log('\n---Roles---\n');
     console.table(result.rows);
     console.log('\n' + '-'.repeat(50) + '\n')
    
@@ -61,7 +62,7 @@ const viewAllEmployees = async () => {
       console.error('Error executing query', error);
       return;
     }
-    console.log('\n---Departments---\n');
+    console.log('\n---Employees---\n');
     console.table(result.rows);
     console.log('\n' + '-'.repeat(50) + '\n')
   });
@@ -154,6 +155,121 @@ const addRoleQuery = async (): Promise<void> => {
 
 //add an employee
 
+// Fetch all roles from the database
+const getRoles = async (): Promise<{ id: number, title: string }[]> => {
+  return new Promise((resolve, reject) => {
+    pool.query('SELECT id, title FROM role', (error: Error, result: QueryResult) => {
+      if (error) {
+        console.error('Error executing query', error);
+        reject(error);
+      } else {
+        resolve(result.rows); // Return an array of { id, title }
+      }
+    });
+  });
+};
+
+// Fetch all employees from the database (to be used as managers)
+const getEmployees = async (): Promise<{ id: number | null; name: string }[]> => {
+  return new Promise((resolve, reject) => {
+    pool.query(`SELECT id, CONCAT(first_name, ' ', last_name) AS name FROM employee`, (error: Error, result: QueryResult) => {
+      if (error) {
+        console.error('Error executing query', error);
+        reject(error);
+      } else {
+        resolve(result.rows); // Return an array of { id, name }
+      }
+    });
+  });
+};
+
+const addEmployee = async (employee: {
+  first_name: string; 
+  last_name: string; 
+  role_id: number; 
+  manager_id: number | null; // Explicitly allow null
+}): Promise<void> => {
+  const query = {
+    text: 'INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ($1, $2, $3, $4)',
+    values: [employee.first_name, employee.last_name, employee.role_id, employee.manager_id],
+  };
+  try {
+    await pool.query(query);
+    console.log('Employee added successfully');
+  } catch (error) {
+    console.error('Error executing query', error);
+  }
+};
+
+
+
+
+
+
+// Function to add an employee with role and manager selection
+
+// Function to add an employee with role and manager selection
+const addEmployeeQuery = async (): Promise<void> => {
+  try {
+    console.log('Entering addEmployeeQuery'); // Debugging log
+    const roles = await getRoles();
+    
+
+    const employees = await getEmployees();
+    console.log('Fetched Employees:', employees); // Debugging log
+
+    const roleChoices = roles.map(role => ({
+      name: role.title,
+      value: role.id,
+    }));
+
+    const managerChoices: { name: string; value: number | null }[] = employees.map(employee => ({
+      name: employee.name,
+      value: employee.id,
+    }));
+
+    // Add an option for "No Manager"
+    managerChoices.unshift({ name: 'None', value: null });
+
+    // Prompt for employee details
+    const answers = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'first_name',
+        message: 'Enter the first name of the employee',
+      },
+      {
+        type: 'input',
+        name: 'last_name',
+        message: 'Enter the last name of the employee',
+      },
+      {
+        type: 'list',
+        name: 'role_id',
+        message: 'Select the role of the employee',
+        choices: roleChoices,
+      },
+      {
+        type: 'list',
+        name: 'manager_id',
+        message: 'Select the manager of the employee',
+        choices: managerChoices,
+      },
+    ]);
+
+    await addEmployee({
+      first_name: answers.first_name,
+      last_name: answers.last_name,
+      role_id: answers.role_id,
+      manager_id: answers.manager_id,
+    });
+
+  } catch (error) {
+    console.error('Error in addEmployeeQuery:', error);
+  }
+};
+
+
 //update an employee role
 
 
@@ -166,7 +282,7 @@ async function mainMenu() {
           type: 'list',
           name: 'action',
           message: 'What would you like to do?',
-          choices: ['View all departments', 'View all roles', 'View all employees', 'Add a department', "Add a role", ], //'Add a department', 'Add a role', 'Add an employee', 'Update an employee role'
+          choices: ['View all departments', 'View all roles', 'View all employees', 'Add a department', "Add a role", 'Add an employee'], // 'Update an employee role'
         },
       ])
       
@@ -180,6 +296,8 @@ async function mainMenu() {
          await addDeptQuery();
         } else if (answers.action === 'Add a role') {
           await addRoleQuery();
+        } else if (answers.action === 'Add an employee') {
+          await addEmployeeQuery();
         }
         console.clear();
         await mainMenu();
