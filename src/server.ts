@@ -3,6 +3,7 @@ import { QueryResult } from 'pg';
 import { pool, connectToDb } from './connection.js';
 import inquirer from 'inquirer';
 
+
 await connectToDb();
 
 interface DepartmentInput{
@@ -35,6 +36,7 @@ const viewAllDepartments = async () => {
     console.log('\n---Departments---\n');
     console.table(result.rows);
     console.log('\n' + '-'.repeat(50) + '\n');
+    console.log('Press ENTER key to return to the main menu');
   });
 };
 
@@ -49,7 +51,8 @@ const viewAllRoles = async () => {
     }
     console.log('\n---Roles---\n');
     console.table(result.rows);
-    console.log('\n' + '-'.repeat(50) + '\n')
+    console.log('\n' + '-'.repeat(50) + '\n');
+    console.log('Press ENTER key to return to the main menu');
    
   });
 };
@@ -64,7 +67,8 @@ const viewAllEmployees = async () => {
     }
     console.log('\n---Employees---\n');
     console.table(result.rows);
-    console.log('\n' + '-'.repeat(50) + '\n')
+    console.log('\n' + '-'.repeat(50) + '\n');
+    console.log('Press ENTER key to return to the main menu');
   });
 }
 //add a department
@@ -271,40 +275,111 @@ const addEmployeeQuery = async (): Promise<void> => {
 
 
 //update an employee role
+// Function to update an employee's role
+const updateEmployeeRole = async (employeeId: number, roleId: number): Promise<void> => {
+  const query = {
+    text: 'UPDATE employee SET role_id = $1 WHERE id = $2',
+    values: [roleId, employeeId],
+  };
+  try {
+    await pool.query(query);
+    console.log('Employee role updated successfully');
+  } catch (error) {
+    console.error('Error updating employee role', error);
+  }
+};
+
+// Function to handle the update role process
+const updateEmployeeRoleQuery = async (): Promise<void> => {
+  try {
+    // Fetch all employees
+    const employees = await getEmployees();
+    
+    // Generate employee choices for inquirer
+    const employeeChoices = employees.map(employee => ({
+      name: employee.name,
+      value: employee.id,
+    }));
+
+    // Fetch all roles
+    const roles = await getRoles();
+
+    // Generate role choices for inquirer
+    const roleChoices = roles.map(role => ({
+      name: role.title,
+      value: role.id,
+    }));
+
+    // Prompt the user to select an employee
+    const employeeAnswer = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'employee_id',
+        message: 'Select the employee whose role you want to update',
+        choices: employeeChoices,
+      },
+    ]);
+
+    // Prompt the user to select a new role
+    const roleAnswer = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'role_id',
+        message: 'Select the new role for the employee',
+        choices: roleChoices,
+      },
+    ]);
+
+    // Update the employee's role in the database
+    await updateEmployeeRole(employeeAnswer.employee_id, roleAnswer.role_id);
+  } catch (error) {
+    console.error('Error updating employee role:', error);
+  }
+};
 
 
 
 
 // inquirer
 async function mainMenu() {
-    const answers= await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'action',
-          message: 'What would you like to do?',
-          choices: ['View all departments', 'View all roles', 'View all employees', 'Add a department', "Add a role", 'Add an employee'], // 'Update an employee role'
-        },
-      ])
+  console.clear(); // **Change 1: Clear the console before showing the new prompt**
+  
+  const answers = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'action',
+      message: 'What would you like to do?',
+      choices: ['View all departments', 'View all roles', 'View all employees', 'Add a department', 'Add a role', 'Add an employee', "Update an employee role"], // 'Update an employee role'
+    },
+  ]);
+
+      // Perform actions based on user selection
+      if (answers.action === 'View all departments') {
+        await viewAllDepartments();
+      } else if (answers.action === 'View all roles') {
+        await viewAllRoles();
+      } else if (answers.action === 'View all employees') {
+        await viewAllEmployees();
+      } else if (answers.action === 'Add a department') {
+        await addDeptQuery();
+      } else if (answers.action === 'Add a role') {
+        await addRoleQuery();
+      } else if (answers.action === 'Add an employee') {
+        await addEmployeeQuery();
+      } else if (answers.action === 'Update an employee role') {
+        await updateEmployeeRoleQuery();
+      }
+
+      // **Change 2: Add a prompt to pause after displaying results**
+      // Wait for the user to see the results before continuing
+      console.log("\nPress any key to return to the main menu...");
+      await inquirer.prompt([{ type: 'input', name: 'continue', message: '' }]);
+
+      await mainMenu(); // Recursively call main menu to show options again
+    }
+
       
-        if (answers.action === 'View all departments') {
-           await viewAllDepartments();
-        } else if (answers.action === 'View all roles') {
-          await  viewAllRoles();
-        } else if (answers.action === 'View all employees') {
-          await  viewAllEmployees();
-        } else if (answers.action === 'Add a department') {
-         await addDeptQuery();
-        } else if (answers.action === 'Add a role') {
-          await addRoleQuery();
-        } else if (answers.action === 'Add an employee') {
-          await addEmployeeQuery();
-        }
-        console.clear();
-        await mainMenu();
-      };
-      
-      
-      
+      console.clear();
       mainMenu();
 
 
