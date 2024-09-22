@@ -349,7 +349,7 @@ async function mainMenu() {
       type: 'list',
       name: 'action',
       message: 'What would you like to do?',
-      choices: ['View all departments', 'View all roles', 'View all employees', 'Add a department', 'Add a role', 'Add an employee', "Update an employee role"], // 'Update an employee role'
+      choices: ['View all departments', 'View all roles', 'View all employees', 'Add a department', 'Add a role', 'Add an employee', "Update an employee role", 'Exit'], // 'Update an employee role'
     },
   ]);
 
@@ -368,7 +368,11 @@ async function mainMenu() {
         await addEmployeeQuery();
       } else if (answers.action === 'Update an employee role') {
         await updateEmployeeRoleQuery();
-      }
+      } else if (answers.action === 'Exit') {
+        console.clear();
+        console.log('Goodbye!');
+        process.exit(0);
+      };
 
       // **Change 2: Add a prompt to pause after displaying results**
       // Wait for the user to see the results before continuing
